@@ -1,27 +1,38 @@
+// Package stat provides generalized statistical functions
 package stat
 
 import (
 	"fmt"
 	"math"
+	"math/cmplx"
 	"sort"
 
 	"gonum.org/v1/gonum/mat"
 )
 
+// LD is a type for computing and extracting the linear discriminant analysis of a
+// matrix. The results of the linear discriminant analysis are only valid
+// if the call to LinearDiscriminant was successful.
 type LD struct {
-	n, p  int         //n = row, p = col
-	ct    []float64   //Constant term of discriminant function of each class
-	mu    [][]float64 //Mean vectors of each class
+	n, p  int //n = row, p = col
+	k     int
+	ct    []float64  //Constant term of discriminant function of each class
+	mu    *mat.Dense //Mean vectors of each class
 	svd   *mat.SVD
 	ok    bool
 	eigen mat.Eigen //Eigen values of common variance matrix
 }
 
-/**
- * @param x is the training samples
- * @param y is the training labels in [0,k)
- * where k is the number of classes
- */
+// LinearDiscriminant performs a linear discriminant analysis on the
+// matrix of the input data which is represented as an n×p matrix x where each
+// row is an observation and each column is a variable
+//
+// LinearDiscriminant returns whether the analysis was successful
+//
+// @param x is the training samples
+// @param y is the training labels in [0,k)
+// where k is the number of classes
+// @retun ok returns if whether the analysis was successful
 func (ld *LD) LinearDiscriminant(x mat.Matrix, y []int) (ok bool) {
 	ld.n, ld.p = x.Dims()
 	fmt.Printf("This is the matrix: %v \n", x)
@@ -66,20 +77,20 @@ func (ld *LD) LinearDiscriminant(x mat.Matrix, y []int) (ok bool) {
 	//Tol will reject variables whose variance is less than tol
 	var tol float64 = 1E-4
 	//k is the number of classes
-	var k int = len(labels)
-	fmt.Printf("this is k and ld.n: %v, %v \n", k, ld.n)
-	if k < 2 {
+	ld.k = len(labels)
+	fmt.Printf("this is k and ld.n: %v, %v \n", ld.k, ld.n)
+	if ld.k < 2 {
 		panic("Only one class.")
 	}
 	if tol < 0.0 {
 		panic("Invalid tol")
 	}
-	if ld.n <= k {
+	if ld.n <= ld.k {
 		panic("Sample size is too small")
 	}
 
 	//Number of instances in each class
-	ni := make([]int, k)
+	ni := make([]int, ld.k)
 
 	//Common mean vector
 	var colmean []float64
@@ -99,29 +110,29 @@ func (ld *LD) LinearDiscriminant(x mat.Matrix, y []int) (ok bool) {
 
 	//Class mean vectors
 	//mu is a matrix with dimensions: k x ld.p
-	mu := mat.NewDense(k, ld.p, make([]float64, k*ld.p, k*ld.p))
+	ld.mu = mat.NewDense(ld.k, ld.p, make([]float64, ld.k*ld.p, ld.k*ld.p))
 	for i := 0; i < ld.n; i++ {
 		ni[y[i]] = ni[y[i]] + 1
 		for j := 0; j < ld.p; j++ {
-			mu.Set(y[i], j, ((mu.At(y[i], j)) + (x.At(i, j))))
+			ld.mu.Set(y[i], j, ((ld.mu.At(y[i], j)) + (x.At(i, j))))
 		}
 	}
-	for i := 0; i < k; i++ {
+	for i := 0; i < ld.k; i++ {
 		for j := 0; j < ld.p; j++ {
-			mu.Set(i, j, ((mu.At(i, j)) / (float64)(ni[i])))
+			ld.mu.Set(i, j, ((ld.mu.At(i, j)) / (float64)(ni[i])))
 		}
 	}
 
 	//priori is the priori probability of each class
-	priori := make([]float64, k)
-	for i := 0; i < k; i++ {
+	priori := make([]float64, ld.k)
+	for i := 0; i < ld.k; i++ {
 		priori[i] = (float64)(ni[i] / ld.n)
 	}
 
 	//ct is the constant term of discriminant function of each class
-	ct := make([]float64, k)
-	for i := 0; i < k; i++ {
-		ct[i] = math.Log(priori[i])
+	ld.ct = make([]float64, ld.k)
+	for i := 0; i < ld.k; i++ {
+		ld.ct[i] = math.Log(priori[i])
 	}
 
 	for i := 0; i < ld.n; i++ {
@@ -136,7 +147,7 @@ func (ld *LD) LinearDiscriminant(x mat.Matrix, y []int) (ok bool) {
 
 	for j := 0; j < ld.p; j++ {
 		for l := 0; l <= j; l++ {
-			C.Set(j, l, ((C.At(j, l)) / (float64)(ld.n-k)))
+			C.Set(j, l, ((C.At(j, l)) / (float64)(ld.n-ld.k)))
 			C.Set(l, j, C.At(j, l))
 		}
 		if C.At(j, j) < tol {
@@ -153,9 +164,44 @@ func (ld *LD) LinearDiscriminant(x mat.Matrix, y []int) (ok bool) {
 	return true
 }
 
+// Transform performs a transformation on the
+// matrix of the input data which is represented as an ld.n × p matrix x
+//
+// Transform returns the transformed matrix
+//
+// @param x is the matrix
+// @retun result matrix
 func (ld *LD) Transform(x mat.Matrix) *mat.Dense {
 	_, p := ld.eigen.Vectors().Dims()
 	result := mat.NewDense(ld.n, p, make([]float64, ld.n*p, ld.n*p))
 	result.Mul(x, ld.eigen.Vectors())
 	return result
+}
+
+func (ld *LD) Predict(x []float64) int {
+	if len(x) != ld.p {
+		panic("Invalid imput vector size")
+	}
+	var y int = 0
+	var max float64 = math.Inf(-1)
+	d := make([]float64, ld.p)
+	ux := make([]float64, ld.p)
+	for i := 0; i < ld.k; i++ {
+		for j := 0; j < ld.p; j++ {
+			d[j] = x[j] - ld.mu.At(i, j)
+		}
+		var f float64 = 0.0
+		evals := make([]complex128, ld.p)
+		ld.eigen.Values(evals)
+		for j := 0; j < ld.p; j++ {
+			f += ux[j] * ux[j] / cmplx.Abs(evals[j])
+		}
+		f = ld.ct[i] - 0.5*f
+		if max < f {
+			max = f
+			y = i
+		}
+	}
+	return y
+
 }
