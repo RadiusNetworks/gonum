@@ -73,7 +73,7 @@ func (ld *LD) LinearDiscriminant(x mat.Matrix, y []int) (ok bool) {
 			panic("Missing class")
 		}
 	}
-	//Tol is a tolerence to decide if a covariance matrix is singular
+	//Tol is a tolerence to decide if a covariance matrix is singular (det is zero)
 	//Tol will reject variables whose variance is less than tol
 	var tol float64 = 1E-4
 	//k is the number of classes
