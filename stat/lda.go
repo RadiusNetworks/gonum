@@ -4,7 +4,6 @@ package stat
 import (
 	"fmt"
 	"math"
-	"math/cmplx"
 	"sort"
 
 	"gonum.org/v1/gonum/mat"
@@ -20,7 +19,7 @@ type LD struct {
 	mu    *mat.Dense //Mean vectors of each class
 	svd   *mat.SVD
 	ok    bool
-	eigen mat.Eigen //Eigen values of common variance matrix
+	eigen mat.EigenSym //Eigen values of common variance matrix
 }
 
 // LinearDiscriminant performs a linear discriminant analysis on the
@@ -105,7 +104,7 @@ func (ld *LD) LinearDiscriminant(x mat.Matrix, y []int) (ok bool) {
 	fmt.Printf("this is the array of means %v \n", colmean)
 
 	//C is a matrix of zeros with dimensions: ld.p x ld.p
-	C := mat.NewDense(ld.p, ld.p, make([]float64, ld.p*ld.p, ld.p*ld.p))
+	C := mat.NewSymDense(ld.p, make([]float64, ld.p*ld.p, ld.p*ld.p))
 	fmt.Printf("this is the zero matrix: %v \n", C)
 
 	//Class mean vectors
@@ -138,7 +137,7 @@ func (ld *LD) LinearDiscriminant(x mat.Matrix, y []int) (ok bool) {
 	for i := 0; i < ld.n; i++ {
 		for j := 0; j < ld.p; j++ {
 			for l := 0; l <= j; l++ {
-				C.Set(j, l, (C.At(j, l) + ((x.At(i, j) - colmean[j]) * (x.At(i, l) - colmean[l]))))
+				C.SetSym(j, l, (C.At(j, l) + ((x.At(i, j) - colmean[j]) * (x.At(i, l) - colmean[l]))))
 			}
 		}
 	}
@@ -147,8 +146,8 @@ func (ld *LD) LinearDiscriminant(x mat.Matrix, y []int) (ok bool) {
 
 	for j := 0; j < ld.p; j++ {
 		for l := 0; l <= j; l++ {
-			C.Set(j, l, ((C.At(j, l)) / (float64)(ld.n-ld.k)))
-			C.Set(l, j, C.At(j, l))
+			C.SetSym(j, l, ((C.At(j, l)) / (float64)(ld.n-ld.k)))
+			C.SetSym(l, j, C.At(j, l))
 		}
 		if C.At(j, j) < tol {
 			panic("Covarience matrix (variable %d) is close to singular")
@@ -159,7 +158,7 @@ func (ld *LD) LinearDiscriminant(x mat.Matrix, y []int) (ok bool) {
 
 	//Factorize returns whether the decomposition succeeded
 	//If the decomposition failed, methods that require a successful factorization will panic
-	ld.eigen.Factorize(C, false, true)
+	ld.eigen.Factorize(C, true)
 	fmt.Printf("this is the eigen value %v \n", ld.eigen)
 	return true
 }
@@ -172,9 +171,11 @@ func (ld *LD) LinearDiscriminant(x mat.Matrix, y []int) (ok bool) {
 // @param x is the matrix
 // @retun result matrix
 func (ld *LD) Transform(x mat.Matrix) *mat.Dense {
-	_, p := ld.eigen.Vectors().Dims()
-	result := mat.NewDense(ld.n, p, make([]float64, ld.n*p, ld.n*p))
-	result.Mul(x, ld.eigen.Vectors())
+	values := make([]float64, ld.p*ld.p, ld.p*ld.p)
+	evecs := mat.NewDense(ld.p, ld.p, values)
+	evecs.EigenvectorsSym(&ld.eigen)
+	result := mat.NewDense(ld.n, ld.p, make([]float64, ld.n*ld.p, ld.n*ld.p))
+	result.Mul(x, evecs)
 	return result
 }
 
@@ -191,10 +192,10 @@ func (ld *LD) Predict(x []float64) int {
 			d[j] = x[j] - ld.mu.At(i, j)
 		}
 		var f float64 = 0.0
-		evals := make([]complex128, ld.p)
+		evals := make([]float64, ld.p)
 		ld.eigen.Values(evals)
 		for j := 0; j < ld.p; j++ {
-			f += ux[j] * ux[j] / cmplx.Abs(evals[j])
+			f += ux[j] * ux[j] / math.Abs(evals[j])
 		}
 		f = ld.ct[i] - 0.5*f
 		if max < f {
