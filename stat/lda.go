@@ -2,7 +2,6 @@
 package stat
 
 import (
-	"fmt"
 	"math"
 	"sort"
 
@@ -24,42 +23,30 @@ type LD struct {
 
 // LinearDiscriminant performs a linear discriminant analysis on the
 // matrix of the input data which is represented as an n×p matrix x where each
-// row is an observation and each column is a variable
+// row is an observation and each column is a variable.
+// It returns whether the analysis was successful.
 //
-// LinearDiscriminant returns whether the analysis was successful
 //
-// @param x is the training samples
-// @param y is the training labels in [0,k)
+// parameter x is the training samples
+// parameter y is the training labels in [0,k)
 // where k is the number of classes
 // @retun ok returns if whether the analysis was successful
 func (ld *LD) LinearDiscriminant(x mat.Matrix, y []int) (ok bool) {
 	ld.n, ld.p = x.Dims()
-	fmt.Printf("This is the matrix: %v \n", x)
-	fmt.Printf("This is the array: %v \n", y)
-	fmt.Printf("x dims: %v, %v \n", ld.n, ld.p)
 	if y != nil && len(y) != ld.n {
 		panic("The sizes of X and Y don't match")
 	}
 	var labels []int
-	var found bool
-	//Find unique labels
-	for i := 0; i < len(y); i++ {
-		found = false
-		for j := 0; j < len(labels); j++ {
-			if y[i] == labels[j] {
-				found = true
-				break
-			}
+	var labelMap = map[int]bool{}
+	for _, label := range y {
+		if !labelMap[label] {
+			labelMap[label] = true
+			labels = append(labels, label)
 		}
-		if !found {
-			labels = append(labels, y[i])
-		}
-
 	}
 	//Create a new array with labels and go through the array of y values and if
 	//it doesnt exist then add it to the new array
 	sort.Ints(labels)
-	fmt.Printf("Sorted list of labels: %v \n", labels)
 
 	if labels[0] != 0 {
 		panic("Label does not start from zero")
@@ -77,7 +64,6 @@ func (ld *LD) LinearDiscriminant(x mat.Matrix, y []int) (ok bool) {
 	var tol float64 = 1E-4
 	//k is the number of classes
 	ld.k = len(labels)
-	fmt.Printf("this is k and ld.n: %v, %v \n", ld.k, ld.n)
 	if ld.k < 2 {
 		panic("Only one class.")
 	}
@@ -101,11 +87,9 @@ func (ld *LD) LinearDiscriminant(x mat.Matrix, y []int) (ok bool) {
 		}
 		colmean = append(colmean, sum/float64(ld.n))
 	}
-	fmt.Printf("this is the array of means %v \n", colmean)
 
 	//C is a matrix of zeros with dimensions: ld.p x ld.p
 	C := mat.NewSymDense(ld.p, make([]float64, ld.p*ld.p, ld.p*ld.p))
-	fmt.Printf("this is the zero matrix: %v \n", C)
 
 	//Class mean vectors
 	//mu is a matrix with dimensions: k x ld.p
@@ -154,12 +138,9 @@ func (ld *LD) LinearDiscriminant(x mat.Matrix, y []int) (ok bool) {
 		}
 	}
 
-	fmt.Printf("this is the code varience %v \n", C)
-
 	//Factorize returns whether the decomposition succeeded
 	//If the decomposition failed, methods that require a successful factorization will panic
 	ld.eigen.Factorize(C, true)
-	fmt.Printf("this is the eigen value %v \n", ld.eigen)
 	return true
 }
 
@@ -168,8 +149,8 @@ func (ld *LD) LinearDiscriminant(x mat.Matrix, y []int) (ok bool) {
 //
 // Transform returns the transformed matrix
 //
-// @param x is the matrix
-// @retun result matrix
+// parameter x is the matrix
+// return result matrix
 func (ld *LD) Transform(x mat.Matrix) *mat.Dense {
 	values := make([]float64, ld.p*ld.p, ld.p*ld.p)
 	evecs := mat.NewDense(ld.p, ld.p, values)

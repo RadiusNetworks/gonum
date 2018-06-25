@@ -567,7 +567,11 @@ tests:
 					t.Errorf("unexpected prediction result %v got:%v, want:%v", k, c, test.wantClass[k]) //in a loop
 				}
 			}
-			fmt.Printf("this is the result %v \n", result)
+			//fmt.Printf("this is the result %v \n", result)
+			v1 := make([]float64, ld.p*ld.p, ld.p*ld.p)
+			evecs := mat.NewDense(ld.p, ld.p, v1)
+			evecs.EigenvectorsSym(&ld.eigen)
+			fmt.Printf("this is the eigen vectors %v \n", evecs)
 			fileName := fmt.Sprintf("result %d.csv", i)
 			file, err := os.Create(fileName)
 			checkError("Cannot create file", err)
