@@ -98,6 +98,7 @@ func (ld *LD) LinearDiscriminant(x mat.Matrix, y []int) (ok bool) {
 		ni[y[i]] = ni[y[i]] + 1
 		for j := 0; j < ld.p; j++ {
 			ld.mu.Set(y[i], j, ((ld.mu.At(y[i], j)) + (x.At(i, j))))
+
 		}
 	}
 	for i := 0; i < ld.k; i++ {
