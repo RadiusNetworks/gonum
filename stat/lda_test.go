@@ -560,7 +560,7 @@ tests:
 			for k := 0; k < r; k++ {
 				c := ld.Predict(test.testPredict.RawRowView(k))
 				if c != test.wantClass[k] {
-					t.Errorf("unexpected prediction result %v got:%v, want:%v", k, c, test.wantClass[k]) //in a loop
+					t.Errorf("unexpected prediction result %v got:%v, want:%v", k, c, test.wantClass[k])
 				}
 			}
 			v1 := make([]float64, ld.p*ld.p, ld.p*ld.p)

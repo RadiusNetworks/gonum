@@ -24,13 +24,12 @@ type LD struct {
 // LinearDiscriminant performs a linear discriminant analysis on the
 // matrix of the input data which is represented as an n×p matrix x where each
 // row is an observation and each column is a variable.
-// It returns whether the analysis was successful.
 //
 //
-// parameter x is the training samples
-// parameter y is the training labels in [0,k)
+// Parameter x is the training samples
+// Parameter y is the training labels in [0,k)
 // where k is the number of classes
-// @retun ok returns if whether the analysis was successful
+// Returns whether the analysis was successful
 func (ld *LD) LinearDiscriminant(x mat.Matrix, y []int) (ok bool) {
 	ld.n, ld.p = x.Dims()
 	if y != nil && len(y) != ld.n {
@@ -44,8 +43,8 @@ func (ld *LD) LinearDiscriminant(x mat.Matrix, y []int) (ok bool) {
 			labels = append(labels, label)
 		}
 	}
-	//Create a new array with labels and go through the array of y values and if
-	//it doesnt exist then add it to the new array
+	// Create a new array with labels and go through the array of y values and if
+	// it doesnt exist then add it to the new array
 	sort.Ints(labels)
 
 	if labels[0] != 0 {
@@ -59,10 +58,10 @@ func (ld *LD) LinearDiscriminant(x mat.Matrix, y []int) (ok bool) {
 			panic("Missing class")
 		}
 	}
-	//Tol is a tolerence to decide if a covariance matrix is singular (det is zero)
-	//Tol will reject variables whose variance is less than tol
+	// Tol is a tolerence to decide if a covariance matrix is singular (det is zero)
+	// Tol will reject variables whose variance is less than tol
 	var tol float64 = 1E-4
-	//k is the number of classes
+	// k is the number of classes
 	ld.k = len(labels)
 	if ld.k < 2 {
 		panic("Only one class.")
@@ -74,10 +73,10 @@ func (ld *LD) LinearDiscriminant(x mat.Matrix, y []int) (ok bool) {
 		panic("Sample size is too small")
 	}
 
-	//Number of instances in each class
+	// Number of instances in each class
 	ni := make([]int, ld.k)
 
-	//Common mean vector
+	// Common mean vector
 	var colmean []float64
 	for i := 0; i < ld.p; i++ {
 		var col []float64 = mat.Col(nil, i, x)
@@ -88,11 +87,11 @@ func (ld *LD) LinearDiscriminant(x mat.Matrix, y []int) (ok bool) {
 		colmean = append(colmean, sum/float64(ld.n))
 	}
 
-	//C is a matrix of zeros with dimensions: ld.p x ld.p
+	// C is a matrix of zeros with dimensions: ld.p x ld.p
 	C := mat.NewSymDense(ld.p, make([]float64, ld.p*ld.p, ld.p*ld.p))
 
-	//Class mean vectors
-	//mu is a matrix with dimensions: k x ld.p
+	// Class mean vectors
+	// mu is a matrix with dimensions: k x ld.p
 	ld.mu = mat.NewDense(ld.k, ld.p, make([]float64, ld.k*ld.p, ld.k*ld.p))
 	for i := 0; i < ld.n; i++ {
 		ni[y[i]] = ni[y[i]] + 1
@@ -107,13 +106,13 @@ func (ld *LD) LinearDiscriminant(x mat.Matrix, y []int) (ok bool) {
 		}
 	}
 
-	//priori is the priori probability of each class
+	// priori is the priori probability of each class
 	priori := make([]float64, ld.k)
 	for i := 0; i < ld.k; i++ {
 		priori[i] = (float64)(ni[i] / ld.n)
 	}
 
-	//ct is the constant term of discriminant function of each class
+	// ct is the constant term of discriminant function of each class
 	ld.ct = make([]float64, ld.k)
 	for i := 0; i < ld.k; i++ {
 		ld.ct[i] = math.Log(priori[i])
@@ -139,8 +138,8 @@ func (ld *LD) LinearDiscriminant(x mat.Matrix, y []int) (ok bool) {
 		}
 	}
 
-	//Factorize returns whether the decomposition succeeded
-	//If the decomposition failed, methods that require a successful factorization will panic
+	// Factorize returns whether the decomposition succeeded
+	// If the decomposition failed, methods that require a successful factorization will panic
 	ld.eigen.Factorize(C, true)
 	return true
 }
@@ -148,10 +147,9 @@ func (ld *LD) LinearDiscriminant(x mat.Matrix, y []int) (ok bool) {
 // Transform performs a transformation on the
 // matrix of the input data which is represented as an ld.n × p matrix x
 //
-// Transform returns the transformed matrix
 //
-// parameter x is the matrix
-// return result matrix
+// Parameter x is the matrix being transformed
+// Returns the result (transformed) matrix
 func (ld *LD) Transform(x mat.Matrix) *mat.Dense {
 	values := make([]float64, ld.p*ld.p, ld.p*ld.p)
 	evecs := mat.NewDense(ld.p, ld.p, values)
@@ -161,6 +159,12 @@ func (ld *LD) Transform(x mat.Matrix) *mat.Dense {
 	return result
 }
 
+// Predict performs a prediction to assess which zone a certain
+// set of data would be in
+//
+//
+// Parameter x is the set of data
+// Returns which zone the set of data would be in
 func (ld *LD) Predict(x []float64) int {
 	if len(x) != ld.p {
 		panic("Invalid imput vector size")
