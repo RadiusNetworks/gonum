@@ -60,7 +60,7 @@ func (ld *LD) LinearDiscriminant(x mat.Matrix, y []int) (ok bool) {
 	}
 	// Tol is a tolerence to decide if a covariance matrix is singular (det is zero)
 	// Tol will reject variables whose variance is less than tol
-	var tol float64 = 1E-4
+	var tol = 1E-4
 	// k is the number of classes
 	ld.k = len(labels)
 	if ld.k < 2 {
@@ -79,8 +79,8 @@ func (ld *LD) LinearDiscriminant(x mat.Matrix, y []int) (ok bool) {
 	// Common mean vector
 	var colmean []float64
 	for i := 0; i < ld.p; i++ {
-		var col []float64 = mat.Col(nil, i, x)
-		var sum float64 = 0
+		var col = mat.Col(nil, i, x)
+		var sum float64
 		for _, value := range col {
 			sum += value
 		}
@@ -169,15 +169,15 @@ func (ld *LD) Predict(x []float64) int {
 	if len(x) != ld.p {
 		panic("Invalid imput vector size")
 	}
-	var y int = 0
-	var max float64 = math.Inf(-1)
+	var y int
+	var max = math.Inf(-1)
 	d := make([]float64, ld.p)
 	ux := make([]float64, ld.p)
 	for i := 0; i < ld.k; i++ {
 		for j := 0; j < ld.p; j++ {
 			d[j] = x[j] - ld.mu.At(i, j)
 		}
-		var f float64 = 0.0
+		var f float64
 		evals := make([]float64, ld.p)
 		ld.eigen.Values(evals)
 		for j := 0; j < ld.p; j++ {
